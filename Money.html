@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>專業版 | 加班時數預測系統</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --error-bg: #fef2f2;
+            --error-text: #ef4444;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            color: var(--text-main);
+        }
+
+        /* 擴展性卡片設計 */
+        .calculator-card {
+            background-color: var(--card-bg);
+            padding: 40px 32px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 420px; /* 初始寬度 */
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            transition: max-width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* 當顯示結果時，卡片變寬 */
+        .calculator-card.show-results {
+            max-width: 800px;
+        }
+
+        .card-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+            transition: all 0.3s ease;
+        }
+
+        @media (min-width: 768px) {
+            .calculator-card.show-results .card-content {
+                grid-template-columns: 1fr 1fr; /* 桌面版雙欄佈局 */
+            }
+        }
+
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h2 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            margin: 6px 0 0;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 16px;
+            background-color: var(--bg-color);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 22px;
+            font-weight: 600;
+            text-align: center;
+            letter-spacing: 4px;
+            color: var(--text-main);
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            background-color: #fff;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
+        }
+
+        input[type="text"]::placeholder {
+            color: #cbd5e1;
+            font-weight: 400;
+            letter-spacing: 2px;
+        }
+
+        .error-message {
+            background-color: var(--error-bg);
+            color: var(--error-text);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            text-align: center;
+            font-weight: 500;
+            border: 1px solid #fca5a5;
+            animation: shake 0.4s ease-in-out;
+            margin-bottom: 20px;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+
+        /* 隱藏的資訊區塊，觸發後顯示 */
+        .info-grid {
+            display: none;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-top: auto;
+        }
+        
+        .right-panel {
+            display: none;
+        }
+
+        .calculator-card.show-results .info-grid {
+            display: grid;
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .calculator-card.show-results .right-panel {
+            display: block;
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .info-card {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .info-card .label {
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .info-card .value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .info-card.highlight {
+            background-color: #eef2ff;
+            border-color: #c7d2fe;
+        }
+
+        .info-card.highlight .value {
+            color: var(--primary);
+        }
+
+        /* 表格設計 */
+        .table-container {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            flex-grow: 1;
+        }
+
+        /* 為了容納11列稍微調小上下 padding */
+        th, td {
+            padding: 10px 16px; 
+            text-align: center;
+            font-size: 15px;
+        }
+
+        th {
+            background-color: var(--bg-color);
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+            padding: 14px 16px; /* 標題列維持原高度 */
+        }
+
+        td {
+            border-bottom: 1px solid var(--bg-color);
+            transition: background-color 0.2s;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr:hover td {
+            background-color: var(--bg-color);
+        }
+
+        .time-badge {
+            display: inline-block;
+            background-color: #eef2ff;
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        .hours-col {
+            font-weight: 500;
+            color: var(--text-main);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="calculator-card" id="mainCard">
+        <div class="card-content">
+            
+            <!-- 左側面板：輸入與卡片資訊 -->
+            <div class="left-panel">
+                <div class="header">
+                    <h2>加班預測系統</h2>
+                    <p>請輸入上班時間 ( 07:00 - 09:00 )</p>
+                </div>
+                
+                <div class="form-group">
+                    <input type="text" id="clockIn" placeholder="例: 0830" autocomplete="off" maxlength="4">
+                </div>
+                
+                <div class="error-message" id="errorMsg"></div>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <span class="label">🕒 上班打卡時間</span>
+                        <span class="value" id="actualInTime">--:--</span>
+                    </div>
+                    <div class="info-card">
+                        <span class="label">🏃 標準下班時間</span>
+                        <span class="value" id="standardOutTime">--:--</span>
+                    </div>
+                    <div class="info-card highlight">
+                        <span class="label">⏱️ 加班起算時間</span>
+                        <span class="value" id="overtimeStartTime">--:--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右側面板：預測表格 -->
+            <div class="right-panel">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>預計加班時數</th>
+                                <th>建議打卡下班</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scheduleBody">
+                            <!-- 內容由 JavaScript 動態產生 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function parseTimeInput(inputStr) {
+            let digits = inputStr.replace(/[^0-9]/g, '');
+            if (digits.length !== 3 && digits.length !== 4) return null;
+
+            let h, m;
+            if (digits.length === 3) {
+                h = parseInt(digits.substring(0, 1), 10);
+                m = parseInt(digits.substring(1, 3), 10);
+            } else {
+                h = parseInt(digits.substring(0, 2), 10);
+                m = parseInt(digits.substring(2, 4), 10);
+            }
+            
+            if (h > 23 || m > 59) return null;
+            return h * 60 + m; 
+        }
+
+        function minutesToTime(minutes) {
+            const normalizedMins = minutes % 1440; 
+            const h = Math.floor(normalizedMins / 60).toString().padStart(2, '0');
+            const m = (normalizedMins % 60).toString().padStart(2, '0');
+            return `${h}:${m}`;
+        }
+
+        function generateSchedule() {
+            const clockInInput = document.getElementById('clockIn').value;
+            let digits = clockInInput.replace(/[^0-9]/g, '');
+            
+            const errorMsg = document.getElementById('errorMsg');
+            const mainCard = document.getElementById('mainCard');
+            const scheduleBody = document.getElementById('scheduleBody');
+
+            // 初始化狀態
+            errorMsg.style.display = 'none';
+            scheduleBody.innerHTML = '';
+            mainCard.classList.remove('show-results');
+
+            if (digits.length < 3) return;
+
+            const inMins = parseTimeInput(clockInInput);
+
+            if (inMins === null) {
+                if (digits.length === 4) {
+                    errorMsg.textContent = '輸入的格式或時間不正確！';
+                    errorMsg.style.display = 'block';
+                }
+                return;
+            }
+
+            if (inMins < 420 || inMins > 540) {
+                errorMsg.textContent = '⚠️ 上班時間必須落在 07:00 到 09:00 之間';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            // 邏輯計算
+            const workHoursInMinutes = 9 * 60; 
+            const standardOutMins = inMins + workHoursInMinutes; 
+            const overtimeStartMins = standardOutMins + 30; 
+
+            // 更新資訊卡片
+            document.getElementById('actualInTime').textContent = minutesToTime(inMins);
+            document.getElementById('standardOutTime').textContent = minutesToTime(standardOutMins);
+            document.getElementById('overtimeStartTime').textContent = minutesToTime(overtimeStartMins);
+
+            // 產生清單 (從 1 小時開始，每次增加 0.5 小時，直到 6 小時)
+            for (let i = 1; i <= 6; i += 0.5) {
+                const targetOutMins = overtimeStartMins + (i * 60);
+                const tr = document.createElement('tr');
+                
+                const tdHours = document.createElement('td');
+                tdHours.className = 'hours-col';
+                tdHours.textContent = `${i} 小時`;
+                
+                const tdTime = document.createElement('td');
+                tdTime.innerHTML = `<span class="time-badge">${minutesToTime(targetOutMins)}</span>`;
+                
+                tr.appendChild(tdHours);
+                tr.appendChild(tdTime);
+                scheduleBody.appendChild(tr);
+            }
+
+            // 觸發動畫並展開面板
+            mainCard.classList.add('show-results');
+        }
+
+        document.getElementById('clockIn').addEventListener('input', generateSchedule);
+    </script>
+</body>
+</html>
